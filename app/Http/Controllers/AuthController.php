@@ -3,28 +3,48 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\AccountValidationRequest;
-use App\Traits\TResponse;
-use Exception;
-use Illuminate\Http\JsonResponse;
 use App\Http\Requests\RegisterUserRequest;
-use App\Models\User;
-use App\Notifications\VerificationCodeUserAccount;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Notification;
+use App\Traits\TResponse;
+use App\Services\AuthService;
+use App\Services\UserService;
+use App\Repositories\UserRepository;
+use Illuminate\Http\JsonResponse;
+use Exception;
 
 class AuthController extends Controller
 {
     use TResponse;
 
     /**
+     * @var AuthService
+     */
+    private $authService;
+
+    /**
+     * @var UserService
+     */
+    private $userService;
+
+    /**
+     * @var UserRepository
+     */
+    private $userRepository;
+
+    /**
      * Create a new AuthController instance.
      *
-     * @return void
+     * @param AuthService $authService
+     * @param UserService $userService
+     * @param UserRepository $userRepository
      */
-    public function __construct()
+    public function __construct(AuthService $authService, UserService $userService, UserRepository $userRepository)
     {
-        $this->middleware('auth:api', ['except' => ['login', 'register', 'accountValidation', 'resendValidationToken']]);
+        $this->middleware('auth:api', [
+            'except' => ['login', 'register', 'accountValidation', 'resendValidationToken']
+        ]);
+        $this->authService = $authService;
+        $this->userService = $userService;
+        $this->userRepository = $userRepository;
     }
 
     /**
@@ -36,8 +56,10 @@ class AuthController extends Controller
     {
         $credentials = request(['email', 'password']);
 
-        if (! $token = auth()->attempt($credentials)) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+        $token = $this->authService->login($credentials);
+
+        if (!$token) {
+            return $this->responseError('Unauthorized', 401);
         }
 
         return $this->respondWithToken($token);
@@ -58,11 +80,14 @@ class AuthController extends Controller
      *
      * @return JsonResponse
      */
-    public function logout()
+    public function logout(): JsonResponse
     {
-        auth()->logout();
-
-        return response()->json(['message' => 'Successfully logged out']);
+        try {
+            $this->authService->logout();
+            return response()->json(['message' => 'Successfully logged out']);
+        } catch (\Exception $e) {
+            return $this->responseExceptionError($e);
+        }
     }
 
     /**
@@ -70,25 +95,9 @@ class AuthController extends Controller
      *
      * @return JsonResponse
      */
-    public function refresh()
+    public function refresh(): JsonResponse
     {
-        return $this->respondWithToken(auth()->refresh());
-    }
-
-    /**
-     * Get the token array structure.
-     *
-     * @param string $token
-     *
-     * @return JsonResponse
-     */
-    protected function respondWithToken(string $token): JsonResponse
-    {
-        return response()->json([
-            'access_token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => auth()->factory()->getTTL() * 60
-        ]);
+        return $this->respondWithToken($this->refresh());
     }
 
     /**
@@ -100,24 +109,18 @@ class AuthController extends Controller
      */
     public function register(RegisterUserRequest $request): JsonResponse
     {
-        $user = new User();
-        $user->name = $request->name;
-        $user->email = $request->email;
-        $user->password = Hash::make($request->password);
-        $user->validation_code = random_int(10000000, 99999999);
-        $user->validation_code_validation_date = Carbon::now()->addMinutes(10);
-        $user->save();
-
         try {
-            Notification::send($user, new VerificationCodeUserAccount($user));
+            $user = $this->userService->createUser($request->all());
+            $this->userService->sendValidationCode($user);
+
+            return response()->json([
+                'message' => 'Usuario registrado com sucesso',
+                'user' => ['name' => $user->name, 'email' => $user->email]
+            ], 201);
+
         } catch (Exception $e) {
             return $this->responseExceptionError($e, 500);
         }
-
-        return response()->json([
-            'message' => 'Usuario registrado com sucesso',
-            'user' => ['name' => $user->name, 'email' => $user->email]
-        ], 201);
     }
 
     public function accountValidation(AccountValidationRequest $request): JsonResponse
@@ -125,16 +128,13 @@ class AuthController extends Controller
         $email = $request['email'];
         $validation_code = $request['validation_code'];
 
-        $user = User::where('email', $email)->first();
+        $user = $this->userRepository->findByEmail($email);
 
         if (!$user) {
             return $this->responseError('Usuário não encontrado. Verifique seu cadastro.', 400);
         }
 
-        $validationCodeValidationDate = Carbon::createFromFormat('Y-m-d H:i:s', $user->validation_code_validation_date);
-        $currentDate = Carbon::now();
-
-        if ($currentDate > $validationCodeValidationDate) {
+        if ($this->userService->codeIsExpired($user)) {
             return $this->responseError('Código de validação expirado', 400);
         }
 
@@ -142,8 +142,7 @@ class AuthController extends Controller
             return $this->responseError('Código de validação inválido', 400);
         }
 
-        $user->email_verified = true;
-        $user->save();
+        $this->userService->checkEmail($user);
 
         return response()->json([
             'status' => 'ok',

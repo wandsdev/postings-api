@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Period;
+use App\Services\PeriodService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PeriodController extends Controller
@@ -11,13 +13,18 @@ class PeriodController extends Controller
      * @var mixed
      */
     private $userId;
+    /**
+     * @var PeriodService
+     */
+    private $periodService;
 
-    public function __construct()
+    public function __construct(PeriodService $periodService)
     {
         $this->userId = auth()->user()->getAuthIdentifier();
+        $this->periodService = $periodService;
     }
 
-    public function findAll(Request $request): \Illuminate\Http\JsonResponse
+    public function findAll(Request $request): JsonResponse
     {
         $periods = Period::where(
             'user_id', $this->userId
@@ -25,31 +32,36 @@ class PeriodController extends Controller
         return response()->json($periods, 200);
     }
 
-    public function create(Request $request)
+    /**
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function create(Request $request): JsonResponse
     {
-        $period = new Period();
-        $period->name = $request->name;
-        $period->start_date = $request->start_date;
-        $period->end_date = $request->end_date;
-        $period->user_id = $this->userId;
-        $period->save();
+        $this->periodService->create($request->all());
         return response()->json([], 201);
     }
 
-    public function update(Request $request, $id)
+    /**
+     * @param Request $request
+     * @param $id
+     * @return JsonResponse
+     */
+    public function update(Request $request, $id): JsonResponse
     {
-        $period = Period::findOrFail($id);
-        $period->name = $request->name;
-        $period->start_date = $request->start_date;
-        $period->end_date = $request->end_date;
-        $period->user_id = $this->userId;
-        $period->save();
+        extract($request->all());
+
+        $this->periodService->update($id, $name, $start_date, $end_date);
         return response()->json([], 200);
     }
 
-    public function delete($id)
+    /**
+     * @param $id
+     * @return JsonResponse
+     */
+    public function delete($id): JsonResponse
     {
-        Period::destroy($id);
+        $this->periodService->delete($id);
         return response()->json([], 200);
     }
 }

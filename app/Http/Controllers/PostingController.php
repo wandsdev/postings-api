@@ -3,60 +3,62 @@
 namespace App\Http\Controllers;
 
 use App\Models\Posting;
+use App\Services\PostingService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PostingController extends Controller
 {
-
     /**
-     * @var mixed
+     * @var PostingService
      */
-    private $userId;
+    private $postingService;
 
-    public function __construct()
+    public function __construct(PostingService $postingService)
     {
-        $this->userId = auth()->user()->getAuthIdentifier();
+        $this->postingService = $postingService;
     }
 
-    public function findAll(Request $request): \Illuminate\Http\JsonResponse
+    public function findAll(Request $request): JsonResponse
     {
         $postings = Posting::findAll($request->all(), $this->userId);
         return response()->json($postings, 200);
     }
 
-    public function find(Request $request, $id): \Illuminate\Http\JsonResponse
+    public function find(Request $request, $id): JsonResponse
     {
         $posting = Posting::findOrFail($id);
         return response()->json($posting, 200);
     }
 
-    public function create(Request $request)
+    /**
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function create(Request $request): JsonResponse
     {
-        $posting = new Posting();
-        $posting->person_id = $request->person_id;
-        $posting->value = $request->value;
-        $posting->date = $request->date;
-        $posting->description = $request->description;
-        $posting->user_id = $this->userId;
-        $posting->save();
+        $this->postingService->create($request->all());
         return response()->json([], 201);
     }
 
-    public function update(Request $request, $id)
+    /**
+     * @param Request $request
+     * @param $id
+     * @return JsonResponse
+     */
+    public function update(Request $request, $id): JsonResponse
     {
-        $posting = Posting::findOrFail($id);
-        $posting->person_id = $request->person_id;
-        $posting->value = $request->value;
-        $posting->date = $request->date;
-        $posting->description = $request->description;
-        $posting->user_id = $this->userId;
-        $posting->save();
+        $this->postingService->update($request->all(), $id);
         return response()->json([], 200);
     }
 
-    public function delete($id)
+    /**
+     * @param $id
+     * @return JsonResponse
+     */
+    public function delete($id): JsonResponse
     {
-        Posting::destroy($id);
+        $this->postingService->delete($id);
         return response()->json([], 200);
     }
 }

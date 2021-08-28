@@ -2,53 +2,47 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\RegisterUserRequest;
-use App\Models\User;
-use App\Notifications\VerificationCodeUserAccount;
-use Carbon\Carbon;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
+use App\Services\UserService;
 
 class UserController extends Controller
 {
     /**
-     * @var mixed
+     * @var UserService
      */
-    private $userId;
-    private $userEmail;
-    private $userPassword;
+    private $userService;
 
-    public function __construct()
+    public function __construct(UserService $userService)
     {
-        $this->userId = auth()->user() ? auth()->user()->getAuthIdentifier() : null ;
-        $this->userEmail = auth()->user() ? auth()->user()->email : null;
-        $this->userPassword = auth()->user() ? auth()->user()->password : null ;
+        $this->userService = $userService;
     }
 
-    public function savePhoto(Request $request)
+    /**
+     * @param Request $request
+     * @return JsonResponse
+     * @throws Exception
+     */
+    public function savePhoto(Request $request): JsonResponse
     {
-        $this->validateUserEmail($request);
+        extract($request->all());
 
-        if(empty($request->file('photo'))) {
-            $photoPublicPath = '';
-        } else {
-            $name = time() . Str::random(24) . '.' . $request->file('photo')->getClientOriginalExtension();
-            $photoPublicPath = $request->file('photo')->storePubliclyAs('public/user/photos', $name);
-        }
+        $this->userService->validateUserEmail($email);
+        $user = $this->userService->savePhoto($request);
 
-        $user = User::findOrFail($this->userId);
-        $user->photo = $photoPublicPath;
-        $user->save();
         return response()->json($user, 200);
     }
 
-    public function updatePassword(Request $request)
+    /**
+     * @param Request $request
+     * @return JsonResponse
+     * @throws Exception
+     */
+    public function updatePassword(Request $request): JsonResponse
     {
+        extract($request->all());
+
         $validated = $request->validate([
             'email' => 'required',
             'oldPassword' => 'required|min:8',
@@ -56,51 +50,31 @@ class UserController extends Controller
             'confirmPassword' => 'required|min:8',
         ]);
 
-        $this->validateUpdatePassword($request);
+        $this->userService->validateUpdatePassword($email, $oldPassword, $newPassword, $confirmPassword);
+        $user = $this->userService->updatePassword($newPassword);
 
-        $user = User::findOrFail($this->userId);
-        $user->password = Hash::make($request->newPassword);
-        $user->save();
         return response()->json($user, 200);
     }
 
-    public function update(Request $request)
+    /**
+     * @param Request $request
+     * @return JsonResponse
+     * @throws Exception
+     */
+    public function update(Request $request): JsonResponse
     {
+        extract($request->all());
+
         $validated = $request->validate([
             'name' => 'required|max:255',
             'email' => 'required',
         ]);
 
-        $this->validateUserEmail($request);
+        $this->userService->validateUserEmail($email);
 
-        $user = User::findOrFail($this->userId);
-        $user->name = $request->name;
-        $user->save();
+        $user = $this->userService->update($name);
+
         return response()->json($user, 200);
-    }
-
-    public function validateUserEmail(Request $request)
-    {
-        if ($this->userEmail !== $request->email) {
-            throw new \Exception('Email informado não confere com email do usuário');
-        }
-    }
-
-    public function validateUpdatePassword(Request $request)
-    {
-        $this->validateUserEmail($request);
-
-        if (!Hash::check($request->oldPassword, $this->userPassword)) {
-            throw new \Exception('Senha atual não confere');
-        }
-
-        if (Hash::check($request->newPassword, $this->userPassword)) {
-            throw new \Exception('Senha nova não pode ser igual a atual');
-        }
-
-        if ($request->confirmPassword !== $request->newPassword) {
-            throw new \Exception('As senhas do campos Nova senha e Confirme nova senha não são igual');
-        }
     }
 
     /**
