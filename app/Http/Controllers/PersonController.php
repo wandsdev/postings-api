@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Person;
+use App\Services\PersonService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\App;
@@ -11,43 +13,51 @@ use Illuminate\Support\Str;
 
 class PersonController extends Controller
 {
-    /**
-     * @var mixed
-     */
-    private $userId;
 
-    public function __construct()
+    /**
+     * @var PersonService
+     */
+    private $personService;
+
+    public function __construct(PersonService $personService)
     {
-        $this->userId = auth()->user()->getAuthIdentifier();
+        $this->personService = $personService;
     }
 
-    public function findAll(Request $request): \Illuminate\Http\JsonResponse
+    public function findAll(Request $request): JsonResponse
     {
         $people = Person::where('user_id', $this->userId)->get();
         return response()->json($people, 200);
     }
 
-    public function create(Request $request)
+    /**
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function create(Request $request): JsonResponse
     {
-        $person = new Person();
-        $person->name = $request->name;
-        $person->user_id = $this->userId;
-        $person->save();
+        $this->personService->create($request->all());
         return response()->json([], 201);
     }
 
-    public function update(Request $request, $id)
+    /**
+     * @param Request $request
+     * @param $id
+     * @return JsonResponse
+     */
+    public function update(Request $request, $id): JsonResponse
     {
-        $person = Person::findOrFail($id);
-        $person->name = $request->name;
-        $person->user_id = $this->userId;
-        $person->save();
+        $this->personService->update($request->all(), $id);
         return response()->json([], 200);
     }
 
-    public function delete($id)
+    /**
+     * @param $id
+     * @return JsonResponse
+     */
+    public function delete($id): JsonResponse
     {
-        Person::destroy($id);
+        $this->personService->delete($id);
         return response()->json([], 200);
     }
 }

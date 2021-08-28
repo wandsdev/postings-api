@@ -6,9 +6,12 @@ namespace App\Services;
 use App\Models\User;
 use App\Notifications\ValidationCodeUserAccount;
 use Exception;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 
 class UserService
@@ -75,6 +78,69 @@ class UserService
     {
         $user->email_verified = true;
         $user->save();
+    }
+
+    /**
+     * @param $name
+     * @return User|User[]|Collection|Model
+     */
+    public function update($name)
+    {
+        $user = User::findOrFail(auth()->user()->getAuthIdentifier());
+        $user->name = $name;
+        $user->save();
+        return $user;
+    }
+
+    public function updatePassword($newPassword)
+    {
+        $user = User::findOrFail(auth()->user()->getAuthIdentifier());
+        $user->password = Hash::make($newPassword);
+        $user->save();
+        return $user;
+    }
+
+    /**
+     * @param $request
+     * @return User|User[]|Collection|Model
+     */
+    public  function savePhoto($request)
+    {
+        if(empty($request->file('photo'))) {
+            $photoPublicPath = '';
+        } else {
+            $name = time() . Str::random(24) . '.' . $request->file('photo')->getClientOriginalExtension();
+            $photoPublicPath = $request->file('photo')->storePubliclyAs('public/user/photos', $name);
+        }
+
+        $user = User::findOrFail(auth()->user()->getAuthIdentifier());
+        $user->photo = $photoPublicPath;
+        $user->save();
+        return $user;
+    }
+
+    public function validateUserEmail($email)
+    {
+        if (auth()->user()->email !== $email) {
+            throw new \Exception('Email informado não confere com email do usuário');
+        }
+    }
+
+    public function validateUpdatePassword($email, $oldPassword, $newPassword, $confirmPassword)
+    {
+        $this->validateUserEmail($email);
+
+        if (!Hash::check($oldPassword, auth()->user()->password)) {
+            throw new Exception('Senha atual não confere');
+        }
+
+        if (Hash::check($newPassword, auth()->user()->password)) {
+            throw new Exception('Senha nova não pode ser igual a atual');
+        }
+
+        if ($confirmPassword !== $newPassword) {
+            throw new Exception('As senhas do campos Nova senha e Confirme nova senha não são igual');
+        }
     }
 
 }
