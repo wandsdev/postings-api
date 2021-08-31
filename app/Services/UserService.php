@@ -143,4 +143,13 @@ class UserService
         }
     }
 
+    /**
+     * @param User $user
+     * @return int
+     */
+    public function emailIsChecked(User $user): int
+    {
+        return $user->email_verified;
+    }
+
 }

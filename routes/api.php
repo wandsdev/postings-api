@@ -16,7 +16,7 @@ Route::group(['middleware' => 'api', 'prefix' => 'auth'], function ($router) {
 
     Route::post('register', [AuthController::class, 'register']);
     Route::post('account_validation', [AuthController::class, 'accountValidation']);
-    Route::post('resend_validation_token', [AuthController::class, 'resendValidationToken']);
+    Route::post('resend_validation_code', [AuthController::class, 'resendValidationCode']);
 
     Route::post('user/forgot_password', [UserController::class, 'a']);
     Route::post('user/reset_password', [UserController::class, 'a']);

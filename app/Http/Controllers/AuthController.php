@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\AccountValidationRequest;
+use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterUserRequest;
+use App\Http\Requests\ResendValidateCodeRequest;
 use App\Traits\TResponse;
 use App\Services\AuthService;
 use App\Services\UserService;
@@ -39,9 +41,6 @@ class AuthController extends Controller
      */
     public function __construct(AuthService $authService, UserService $userService, UserRepository $userRepository)
     {
-        $this->middleware('auth:api', [
-            'except' => ['login', 'register', 'accountValidation', 'resendValidationToken']
-        ]);
         $this->authService = $authService;
         $this->userService = $userService;
         $this->userRepository = $userRepository;
@@ -50,16 +49,24 @@ class AuthController extends Controller
     /**
      * Get a JWT via given credentials.
      *
+     * @param LoginRequest $request
      * @return JsonResponse
      */
-    public function login(): JsonResponse
+    public function login(LoginRequest $request): JsonResponse
     {
-        $credentials = request(['email', 'password']);
-
+        $credentials = $request->only('email', 'password');
         $token = $this->authService->login($credentials);
 
         if (!$token) {
             return $this->responseError('Unauthorized', 401);
+        }
+
+        $user = $this->userRepository->findByEmail($credentials['email']);
+        $accountIsChecked = $this->userService->emailIsChecked($user);
+
+        if (!$accountIsChecked) {
+            $this->authService->resendValidationCode($credentials['email']);
+            return $this->responseError('Unchecked', 500);
         }
 
         return $this->respondWithToken($token);
@@ -150,8 +157,8 @@ class AuthController extends Controller
         ], 200);
     }
 
-    public function resendValidationToken ()
+    public function resendValidationCode(ResendValidateCodeRequest $request)
     {
-
+        $this->authService->resendValidationCode($request->email);
     }
 }
