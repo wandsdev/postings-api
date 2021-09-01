@@ -20,7 +20,6 @@ Route::group(['middleware' => 'api', 'prefix' => 'auth'], function ($router) {
 
     Route::post('forgot_password', [AuthController::class, 'forgotPassword']);
     Route::post('reset_password', [AuthController::class, 'resetPassword']);
-
 });
 
 Route::group(['middleware' => 'auth:api'], function ($router) {
