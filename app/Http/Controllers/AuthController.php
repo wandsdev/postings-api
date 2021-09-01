@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\AccountValidationRequest;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterUserRequest;
+use App\Http\Requests\ResetPasswordRequest;
 use App\Http\Requests\ResendValidateCodeRequest;
 use App\Traits\TResponse;
 use App\Services\AuthService;
@@ -12,6 +13,7 @@ use App\Services\UserService;
 use App\Repositories\UserRepository;
 use Illuminate\Http\JsonResponse;
 use Exception;
+use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
@@ -41,6 +43,9 @@ class AuthController extends Controller
      */
     public function __construct(AuthService $authService, UserService $userService, UserRepository $userRepository)
     {
+        $this->middleware('auth:api', [
+            'only' => ['me', 'logout', 'refresh']
+        ]);
         $this->authService = $authService;
         $this->userService = $userService;
         $this->userRepository = $userRepository;
@@ -130,6 +135,12 @@ class AuthController extends Controller
         }
     }
 
+    /**
+     * Validate user account
+     *
+     * @param AccountValidationRequest $request
+     * @return JsonResponse
+     */
     public function accountValidation(AccountValidationRequest $request): JsonResponse
     {
         $email = $request['email'];
@@ -157,8 +168,34 @@ class AuthController extends Controller
         ], 200);
     }
 
+    /**
+     * Resend validation code
+     *
+     * @param ResendValidateCodeRequest $request
+     * @throws Exception
+     */
     public function resendValidationCode(ResendValidateCodeRequest $request)
     {
         $this->authService->resendValidationCode($request->email);
+    }
+
+    public function forgotPassword(Request $request)
+    {
+        extract($request->all());
+
+        $this->validate($request, [ 'email' => 'required|string|email|max:50'],
+            [
+                'email.required' => 'Email é obrigatório.',
+                'email.string' => 'Email deve ser string.',
+                'email.max' => 'Email deve ter no máximo 50 caracteres.',
+                'email.email' => 'Email não é válido.',
+            ]);
+
+        $this->authService->forgotPassword($email);
+    }
+
+    public function resetPassword(ResetPasswordRequest $request)
+    {
+        $this->authService->resetPassword($request->all());
     }
 }

@@ -19,10 +19,11 @@ class UserService
 
     /**
      * @param User $user
+     * @param bool $isResetPassword
      */
-    public function sendValidationCode(User $user)
+    public function sendValidationCode(User $user, $isResetPassword = false)
     {
-        Notification::send($user, new ValidationCodeUserAccount($user));
+        Notification::send($user, new ValidationCodeUserAccount($user, $isResetPassword));
     }
 
     /**
@@ -74,6 +75,9 @@ class UserService
         return $currentDate > $validationCodeValidationDate;
     }
 
+    /**
+     * @param User $user
+     */
     public function checkEmail(User $user)
     {
         $user->email_verified = true;
@@ -119,6 +123,10 @@ class UserService
         return $user;
     }
 
+    /**
+     * @param $email
+     * @throws Exception
+     */
     public function validateUserEmail($email)
     {
         if (auth()->user()->email !== $email) {
@@ -126,6 +134,14 @@ class UserService
         }
     }
 
+
+    /**
+     * @param $email
+     * @param $oldPassword
+     * @param $newPassword
+     * @param $confirmPassword
+     * @throws Exception
+     */
     public function validateUpdatePassword($email, $oldPassword, $newPassword, $confirmPassword)
     {
         $this->validateUserEmail($email);
@@ -139,7 +155,7 @@ class UserService
         }
 
         if ($confirmPassword !== $newPassword) {
-            throw new Exception('As senhas do campos Nova senha e Confirme nova senha não são igual');
+            throw new Exception('As senhas do campos Nova senha e Confirme nova senha não são iguais');
         }
     }
 

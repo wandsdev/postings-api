@@ -19,13 +19,25 @@ class ValidationCodeUserAccount extends Notification
     private $user;
 
     /**
+     * @var string
+     */
+    private $subject;
+
+    /**
+     * @var string
+     */
+    private $text;
+
+    /**
      * Create a new notification instance.
      *
      * @param User $user
      */
-    public function __construct(User $user)
+    public function __construct(User $user, $isResetPassword = false)
     {
         $this->user = $user;
+        $this->subject = $this->getSubject($isResetPassword);
+        $this->text = $this->getText($isResetPassword);
     }
 
     /**
@@ -49,9 +61,9 @@ class ValidationCodeUserAccount extends Notification
     {
         return (new MailMessage)
             ->from('suporte@postings.com')
-            ->subject('Código de verificação da conta')
+            ->subject($this->subject)
             ->greeting("Olá {$this->user->name},")
-            ->line('Geramos o código abaixo para validar sua conta. Copie e cole o código no campo indicado do seu aplicativo ou site.')
+            ->line($this->text)
             ->line(new HtmlString("<div align='center' style='margin: auto 60px; background-color: #eee; padding: 30px 15px; font-weight: bold; letter-spacing: 5px; font-size: 1.2rem'>
                                             {$this->user->validation_code}
                                         </div>"))
@@ -70,5 +82,29 @@ class ValidationCodeUserAccount extends Notification
         return [
             //
         ];
+    }
+
+    /**
+     * @param false $isResetPassword
+     * @return string
+     */
+    private function getSubject($isResetPassword = false)
+    {
+        if ($isResetPassword) {
+            return 'Redefinir Senha';
+        }
+        return 'Código de verificação da conta';
+    }
+
+    /**
+     * @param false $isResetPassword
+     * @return string
+     */
+    private function getText($isResetPassword = false)
+    {
+        if ($isResetPassword) {
+            return 'Geramos o código abaixo para redefinir sua senha. Copie e cole o código no campo indicado do seu aplicativo ou site.';
+        }
+        return 'Geramos o código abaixo para validar sua conta. Copie e cole o código no campo indicado do seu aplicativo ou site.';
     }
 }
