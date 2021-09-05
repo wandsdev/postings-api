@@ -21,7 +21,7 @@ class PostingController extends Controller
 
     public function findAll(Request $request): JsonResponse
     {
-        $postings = Posting::findAll($request->all(), $this->userId);
+        $postings = $this->postingService->findAll($request->all());
         return response()->json($postings, 200);
     }
 

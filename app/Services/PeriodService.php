@@ -20,6 +20,13 @@ class PeriodService
         $this->userId = auth()->user()->getAuthIdentifier();
     }
 
+    public function findAll()
+    {
+        return Period::where('user_id', $this->userId)
+                    ->orderBy('id', 'desc')
+                    ->get();
+    }
+
     /**
      * @param $params
      * @return Period

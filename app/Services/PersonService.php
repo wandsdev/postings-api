@@ -19,6 +19,11 @@ class PersonService
         $this->userId = auth()->user()->getAuthIdentifier();
     }
 
+    public function findAll()
+    {
+        return Person::where('user_id', $this->userId)->get();
+    }
+
     /**
      * @param $params
      * @return Person

@@ -26,7 +26,7 @@ class PersonController extends Controller
 
     public function findAll(Request $request): JsonResponse
     {
-        $people = Person::where('user_id', $this->userId)->get();
+        $people = $this->personService->findAll();
         return response()->json($people, 200);
     }
 

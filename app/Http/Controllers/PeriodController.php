@@ -26,9 +26,7 @@ class PeriodController extends Controller
 
     public function findAll(Request $request): JsonResponse
     {
-        $periods = Period::where(
-            'user_id', $this->userId
-        )->orderBy('id', 'desc')->get();
+        $periods = $this->periodService->findAll();
         return response()->json($periods, 200);
     }
 

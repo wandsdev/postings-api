@@ -5,6 +5,7 @@ namespace App\Services;
 
 
 use App\Models\Posting;
+use App\Repositories\PostingRepository;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
@@ -15,9 +16,24 @@ class PostingService
      */
     private $userId;
 
-    public function __construct()
+    /**
+     * @var PostingRepository
+     */
+    private $postingRepository;
+
+    public function __construct(PostingRepository $postingRepository)
     {
         $this->userId = auth()->user()->getAuthIdentifier();
+        $this->postingRepository = $postingRepository;
+    }
+
+    /**
+     * @param $filters
+     * @return array
+     */
+    public function findAll($filters): array
+    {
+        return $this->postingRepository->findAllPostings($filters, $this->userId);
     }
 
     /**
